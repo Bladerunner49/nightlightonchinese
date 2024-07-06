@@ -44,7 +44,7 @@ def check_ocr():
         # 如果识别结果发生变化，则运行DisplayTest.exe
         if current_found != previous_found:
             # 运行桌面上的DisplayTest.exe文件
-            exe_path = os.path.join(desktop_path, "未分类", "DisplayTest.exe")
+            exe_path = os.path.join(desktop_path, "DisplayTest.exe")
             if os.path.exists(exe_path):
                 subprocess.run([exe_path])
             else:
