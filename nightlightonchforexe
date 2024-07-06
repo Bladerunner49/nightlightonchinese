@@ -1,0 +1,91 @@
+import os
+import pyautogui
+from PIL import Image, ImageDraw
+import pytesseract
+import subprocess
+import time
+import threading
+import pystray
+from pystray import MenuItem as item
+import sys
+import ctypes
+
+# 手动指定Tesseract可执行文件路径（如适用）
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Windows示例路径
+# 对于Mac或Linux系统，确保tesseract在系统路径中即可
+
+# 获取桌面路径
+desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+
+# 获取屏幕大小
+screen_width, screen_height = pyautogui.size()
+
+# 计算右下角区域的位置和大小
+region_width = screen_width // 10
+region_height = screen_height // 24
+region_left = screen_width - region_width
+region_top = screen_height - region_height
+
+# 初始化前一次的识别结果
+previous_found = False
+
+def check_ocr():
+    global previous_found
+    while True:
+        # 截取右下角区域
+        screenshot = pyautogui.screenshot(region=(region_left, region_top, region_width, region_height))
+
+        # 使用OCR识别截图中的文字（指定中文语言）
+        recognized_text = pytesseract.image_to_string(screenshot, lang='chi_sim')
+
+        # 当前是否识别到“中”字
+        current_found = "中" in recognized_text
+
+        # 如果识别结果发生变化，则运行DisplayTest.exe
+        if current_found != previous_found:
+            # 运行桌面上的DisplayTest.exe文件
+            exe_path = os.path.join(desktop_path, "未分类", "DisplayTest.exe")
+            if os.path.exists(exe_path):
+                subprocess.run([exe_path])
+            else:
+                print(f"可执行文件未找到: {exe_path}")
+
+        # 更新前一次的识别结果
+        previous_found = current_found
+
+        # 等待500毫秒
+        time.sleep(0.5)
+
+def create_image():
+    # 生成一个简单的图标用于托盘
+    width = 64
+    height = 64
+    image = Image.new('RGB', (width, height), color='black')
+    dc = ImageDraw.Draw(image)
+    dc.rectangle((width // 2, 0, width, height // 2), fill='white')
+    dc.rectangle((0, height // 2, width // 2, height), fill='white')
+    return image
+
+def on_exit(icon, item):
+    icon.stop()
+    os._exit(0)
+
+def setup(icon):
+    icon.visible = True
+    threading.Thread(target=check_ocr).start()
+
+def hide_console():
+    # 隐藏控制台窗口
+    whnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if whnd != 0:
+        ctypes.windll.user32.ShowWindow(whnd, 0)
+        ctypes.windll.kernel32.CloseHandle(whnd)
+
+if __name__ == "__main__":
+    hide_console()
+
+    icon = pystray.Icon("test_icon", create_image(), "Test", menu=pystray.Menu(
+        item('Exit', on_exit)
+    ))
+
+    icon.run(setup)
